@@ -138,7 +138,9 @@ def crawl_and_extract_exif(root_path, output_csv=None):
 
     # Find all .ARW and .DNG files
     image_files = list(root_path.rglob('*.ARW')) + list(root_path.rglob('*.DNG'))
+    print(f"Found {len(image_files)} image files in {root_path}.")
     image_files += list(root_path.rglob('*.arw')) + list(root_path.rglob('*.dng'))
+    print(f"Found {len(image_files)} image files in {root_path}.")
 
     if not image_files:
         print(f"No .ARW or .DNG files found in {root_path}")
