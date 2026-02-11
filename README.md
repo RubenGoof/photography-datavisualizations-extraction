@@ -177,37 +177,6 @@ python main.py exif_raw.csv --output-dir ./analysis --iso-threshold 6400
 
 ---
 
-## Industrial-Grade Design Decisions
-
-1. **No Hard-Coded Paths**
-   - All file paths are command-line arguments
-   - Output directory is configurable
-   - Easy to integrate into automation workflows
-
-2. **Camera-Agnostic**
-   - Focal length normalization is configurable
-   - ISO threshold is parameterized
-   - Works with any camera model without modification
-
-3. **Robust Data Cleaning**
-   - Multiple fallback methods for EXIF extraction
-   - Comprehensive string/number parsing
-   - Error handling and type coercion
-   - Outlier filtering (ISO > threshold)
-
-4. **Modular Architecture**
-   - Separate extraction script (extract_exif.py)
-   - Combined processing and visualization (main.py)
-   - Each function is reusable and testable
-   - Clear separation of concerns
-
-5. **Comprehensive Logging**
-   - Progress messages during processing
-   - Statistics summary printed to console
-   - File paths confirmed in output
-   - Error messages with context
-
----
 
 ## Performance
 
@@ -262,3 +231,4 @@ pip install pandas piexif Pillow rawpy matplotlib seaborn numpy
 Created for comprehensive photography metadata analysis and visualization.
 
 Last updated: February 2026
+
