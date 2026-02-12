@@ -12,8 +12,22 @@ def setup():
     CSV_LOCATION = "./exif_data.csv"
     return ROOT_PATH, CSV_LOCATION
 
-def test_works(setup):
+def test_main_only(setup):
     ROOT_PATH, CSV_LOCATION = setup
+    assert main(input_csv=CSV_LOCATION, output_dir="./", iso_threshold=6400) == 0
+
+def test_piexif(setup):
+    ROOT_PATH, CSV_LOCATION = setup
+    df = crawl_and_extract_exif(ROOT_PATH, output_csv=CSV_LOCATION, method="piexif" ,max_files=100)
+    print("\nFirst few rows of the dataframe:")
+    print(df.head())
+    assert main(input_csv=CSV_LOCATION, output_dir="./", iso_threshold=6400) == 0
+
+def test_exifread(setup):
+    ROOT_PATH, CSV_LOCATION = setup
+    df = crawl_and_extract_exif(ROOT_PATH, output_csv=CSV_LOCATION, method="exifread", max_files=100)
+    print("\nFirst few rows of the dataframe:")
+    print(df.head())
     assert main(input_csv=CSV_LOCATION, output_dir="./", iso_threshold=6400) == 0
 
 
