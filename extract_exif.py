@@ -5,11 +5,8 @@ import piexif
 from PIL import Image
 from PIL.ExifTags import TAGS
 import warnings
-try:
-    import rawpy
-    RAWPY_AVAILABLE = True
-except ImportError:
-    RAWPY_AVAILABLE = False
+import rawpy
+import argparse
 
 warnings.filterwarnings('ignore')
 
@@ -120,13 +117,14 @@ def extract_exif_from_file(file_path):
     return exif_data
 
 
-def crawl_and_extract_exif(root_path, output_csv=None):
+def crawl_and_extract_exif_pyexif(root_path, output_csv=None, max_files=None):
     """
     Crawl all folders in root_path and extract EXIF data from .ARW and .DNG files
 
     Args:
         root_path (str): Root directory to start crawling from
         output_csv (str): Path to output CSV file. If None, uses root_path/exif_data.csv
+        max_files (int): Maximum number of files to process. If None, processes all files.
 
     Returns:
         pd.DataFrame: DataFrame containing EXIF data for all files
@@ -145,6 +143,12 @@ def crawl_and_extract_exif(root_path, output_csv=None):
     if not image_files:
         print(f"No .ARW or .DNG files found in {root_path}")
         return pd.DataFrame()
+
+    # Limit number of files if max_files is specified
+    if max_files is not None and max_files > 0:
+        original_count = len(image_files)
+        image_files = image_files[:max_files]
+        print(f"Limiting to {len(image_files)} files (out of {original_count} found).")
 
     # --- added: compute total size up-front and print it at the beginning ---
     sizes = []
@@ -201,12 +205,35 @@ def crawl_and_extract_exif(root_path, output_csv=None):
 
 
 if __name__ == "__main__":
-    # Specify your root directory here
-    ROOT_PATH = r"D:\Photos"
+    parser = argparse.ArgumentParser(
+        description="Extract EXIF metadata from raw camera files (.ARW, .DNG, etc.)"
+    )
+    parser.add_argument(
+        "root_path",
+        type=str,
+        help="Root directory to crawl for image files"
+    )
+    parser.add_argument(
+        "--output_csv",
+        type=str,
+        nargs="?",
+        default=None,
+        help="Path to output CSV file (default: <root_path>/exif_data.csv)"
+    )
+    parser.add_argument(
+        "--max-files",
+        type=int,
+        default=None,
+        help="Maximum number of files to process (default: process all files)"
+    )
 
-    # Optional: Specify output CSV path, or leave as None to use default
-    OUTPUT_CSV = None  # Will create exif_data.csv in ROOT_PATH
+    args = parser.parse_args()
 
-    df = crawl_and_extract_exif(ROOT_PATH, OUTPUT_CSV)
+    print(f"Root path: {args.root_path}")
+    print(f"Output: {args.output_csv if args.output_csv else 'default (exif_data.csv in root path)'}")
+    if args.max_files:
+        print(f"Max files: {args.max_files}")
+
+    df = crawl_and_extract_exif_pyexif(args.root_path, args.output_csv, max_files=args.max_files)
     print("\nFirst few rows of the dataframe:")
     print(df.head())
