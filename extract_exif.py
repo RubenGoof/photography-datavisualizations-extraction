@@ -1,12 +1,11 @@
-import os
 from pathlib import Path
 import pandas as pd
 import piexif
 from PIL import Image
 from PIL.ExifTags import TAGS
 import warnings
-import rawpy
 import argparse
+import exifread
 
 warnings.filterwarnings('ignore')
 
@@ -73,7 +72,7 @@ class ProgressEstimator:
         )
 
 
-def extract_exif_from_file(file_path):
+def extract_exif_from_file_piexif(file_path):
     """Extract EXIF data from an image file (.ARW, .DNG, etc.)"""
     exif_data = {}
     exif_data['file_path'] = str(file_path)
@@ -116,8 +115,95 @@ def extract_exif_from_file(file_path):
 
     return exif_data
 
+def extract_exif_from_file_exifread(file_path):
+    """
+    Extract EXIF tags using ExifRead.
 
-def crawl_and_extract_exif_pyexif(root_path, output_csv=None, max_files=None):
+    Uses the "quick" option by disabling tag details parsing (details=False),
+    which is substantially faster for large batches.
+
+    IMPORTANT:
+    - Converts ExifRead tag names (e.g., "EXIF FNumber", "Image Model") into the
+      *exact* keys expected by the rest of the pipeline (e.g., "FNumber", "Model").
+    """
+    def _safe_str(v) -> str:
+        try:
+            return str(v)
+        except Exception:
+            return "Unable to convert value"
+
+    def _first_present(tags_dict: dict, candidates: list[str]):
+        for c in candidates:
+            if c in tags_dict and tags_dict[c] is not None:
+                return tags_dict[c]
+        return None
+
+    def _normalize_key(k: str) -> str:
+        """
+        Generic normalization: strip common ExifRead IFD prefixes.
+        Example: "EXIF FNumber" -> "FNumber", "Image Model" -> "Model"
+        """
+        k = str(k)
+        for prefix in ("EXIF ", "Image ", "GPS ", "Interoperability ", "MakerNote ", "Thumbnail "):
+            if k.startswith(prefix):
+                return k[len(prefix):]
+        return k
+
+    exif_data = {
+        "file_path": str(file_path),
+        "file_name": Path(file_path).name,
+    }
+
+    try:
+        with open(file_path, "rb") as f:
+            # "quick option": details=False
+            tags = exifread.process_file(f, details=False, extract_thumbnail=False)
+
+        if not tags:
+            exif_data["error"] = "No EXIF data found"
+            return exif_data
+
+        # 1) Map into the *exact* keys expected by main.py
+        expected_key_sources = {
+            "ImageWidth": ["Image ImageWidth", "EXIF ExifImageWidth", "Image ExifImageWidth"],
+            "ImageLength": ["Image ImageLength", "EXIF ExifImageLength", "Image ExifImageLength"],
+            "Model": ["Image Model", "EXIF Model"],
+            "ISOSpeedRatings": ["EXIF ISOSpeedRatings", "EXIF PhotographicSensitivity"],
+            "FNumber": ["EXIF FNumber"],
+            "ExposureTime": ["EXIF ExposureTime"],
+            "ExposureBiasValue": ["EXIF ExposureBiasValue"],
+            "Flash": ["EXIF Flash"],
+            "FocalLength": ["EXIF FocalLength"],
+            "DateTime": ["Image DateTime", "EXIF DateTime"],
+            "DateTimeOriginal": ["EXIF DateTimeOriginal"],
+        }
+
+        for out_key, candidates in expected_key_sources.items():
+            v = _first_present(tags, candidates)
+            if v is not None:
+                exif_data[out_key] = _safe_str(v)
+
+        # 2) Also include remaining tags, but normalized (and avoid overwriting mapped keys)
+        for tag_key, tag_value in tags.items():
+            norm_key = _normalize_key(tag_key)
+
+            # Prefer the exact expected keys above; don't overwrite them.
+            if norm_key in exif_data:
+                continue
+
+            # Avoid collisions: if normalized key already used, fall back to the original key.
+            if norm_key in exif_data:
+                exif_data[str(tag_key)] = _safe_str(tag_value)
+            else:
+                exif_data[norm_key] = _safe_str(tag_value)
+
+    except Exception as e:
+        exif_data["error"] = str(e)
+
+    return exif_data
+
+
+def crawl_and_extract_exif(root_path, output_csv=None, max_files=None, method='piexif'):
     """
     Crawl all folders in root_path and extract EXIF data from .ARW and .DNG files
 
@@ -173,7 +259,12 @@ def crawl_and_extract_exif_pyexif(root_path, output_csv=None, max_files=None):
     for i, file_path in enumerate(image_files, 1):
         file_size = sizes[i - 1]
 
-        exif_dict = extract_exif_from_file(file_path)
+        if method == 'piexif':
+            exif_dict = extract_exif_from_file_piexif(file_path)
+        elif method == 'exifread':
+            exif_dict = extract_exif_from_file_exifread(file_path)
+        else:
+            raise ValueError(f"Unsupported method: {method}")
         exif_list.append(exif_dict)
 
         # --- added: advance estimator after work is done for this file ---
@@ -226,6 +317,13 @@ if __name__ == "__main__":
         default=None,
         help="Maximum number of files to process (default: process all files)"
     )
+    parser.add_argument(
+        "--method",
+        type=str,
+        choices=["piexif", "exifread"],
+        default="piexif",
+        help="Method to use for EXIF extraction (default: piexif)"
+    )
 
     args = parser.parse_args()
 
@@ -234,6 +332,9 @@ if __name__ == "__main__":
     if args.max_files:
         print(f"Max files: {args.max_files}")
 
-    df = crawl_and_extract_exif_pyexif(args.root_path, args.output_csv, max_files=args.max_files)
+    df = crawl_and_extract_exif(args.root_path, args.output_csv, max_files=args.max_files, method=args.method)
     print("\nFirst few rows of the dataframe:")
     print(df.head())
+
+    print(f"Total EXIF columns: {len(df.columns)}")
+    print(df.columns.tolist())

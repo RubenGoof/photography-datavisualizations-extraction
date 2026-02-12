@@ -4,5 +4,5 @@ matplotlib
 seaborn
 Pillow
 piexif
-rawpy
+exifread
 pytest

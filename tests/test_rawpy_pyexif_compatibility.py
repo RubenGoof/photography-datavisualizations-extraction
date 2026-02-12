@@ -19,7 +19,7 @@ def test_works(setup):
 
 def test_is_same_output(setup):
     ROOT_PATH, CSV_LOCATION = setup
-    df = crawl_and_extract_exif_pyexif(ROOT_PATH, output_csv=CSV_LOCATION, max_files=100)
+    df = crawl_and_extract_exif(ROOT_PATH, output_csv=CSV_LOCATION, max_files=100)
     print("\nFirst few rows of the dataframe:")
     print(df.head())
     assert 2>1 # add assertion here
