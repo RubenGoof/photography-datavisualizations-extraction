@@ -766,24 +766,34 @@ def print_statistics(df_clean):
     print("\n" + "="*70 + "\n")
 
 
-def main():
-    """Main execution function"""
-    parser = argparse.ArgumentParser(
-        description='EXIF Data Analysis Pipeline',
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog='''
-Examples:
-  python main.py exif_raw.csv
-  python main.py exif_raw.csv --output-dir ./results --iso-threshold 6400
-  python main.py exif_raw.csv --camera-crop-factors '{"ILCE-6400": 1.5, "RICOH GR IV": 1.5}'
-        ''')
-    
-    parser.add_argument('input_csv', help='Path to raw EXIF CSV from extract_exif.py')
-    parser.add_argument('--output-dir', default=None, help='Output directory for cleaned CSV and visualizations (default: same as input)')
-    parser.add_argument('--iso-threshold', type=int, default=6400, help='Maximum ISO to keep (above is outlier, default: 6400)')
-    parser.add_argument('--camera-crop-factors', default='{}', help='JSON dict of camera crop factors (e.g., \'{"ILCE-6400": 1.5}\')')
-    
-    args = parser.parse_args()
+def main(input_csv=None, output_dir=None, iso_threshold=6400, camera_crop_factors="{}"):
+    if input_csv is None:
+        """Main execution function"""
+        parser = argparse.ArgumentParser(
+            description='EXIF Data Analysis Pipeline',
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+            epilog='''
+        Examples:
+          python main.py exif_raw.csv
+          python main.py exif_raw.csv --output-dir ./results --iso-threshold 6400
+          python main.py exif_raw.csv --camera-crop-factors '{"ILCE-6400": 1.5, "RICOH GR IV": 1.5}'
+                ''')
+
+        parser.add_argument('input_csv', help='Path to raw EXIF CSV from extract_exif.py')
+        parser.add_argument('--output-dir', default=None, help='Output directory for cleaned CSV and visualizations (default: same as input)')
+        parser.add_argument('--iso-threshold', type=int, default=6400, help='Maximum ISO to keep (above is outlier, default: 6400)')
+        parser.add_argument('--camera-crop-factors', default='{}', help='JSON dict of camera crop factors (e.g., \'{"ILCE-6400": 1.5}\')')
+
+        args = parser.parse_args()
+    else:
+        args = argparse.Namespace(
+            input_csv=input_csv,
+            output_dir=output_dir,
+            iso_threshold=iso_threshold,
+            camera_crop_factors=camera_crop_factors,
+        )
+
+    print(f"Running with arguments: {args}")
     
     # Validate input
     input_csv = Path(args.input_csv)
